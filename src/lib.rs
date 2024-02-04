@@ -11,6 +11,7 @@ fn handle_route(req: Request) -> Response {
     router.get("/", auth::index);
     router.get("/user/:userName", user::get_user);
     router.put("/user/", user::create_user);
-    router.get("/auth/github/callback", auth::github_callback);
+    router.get("/auth/authorize", auth::authorize);
+    router.get_async("/auth/github/callback", auth::github_callback);
     router.handle(req)
 }

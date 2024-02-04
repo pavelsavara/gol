@@ -343,10 +343,13 @@ name = "gol"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "http",
  "oauth2",
+ "reqwest",
  "serde",
  "serde_json",
  "spin-sdk",
+ "thiserror",
 ]
 
 [[package]]
