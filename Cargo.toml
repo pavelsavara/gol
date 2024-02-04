@@ -13,5 +13,6 @@ anyhow = "1"
 spin-sdk = "2.2.0"
 serde = { version = "1.0.196", features = ["derive"] }
 serde_json = { version = "1.0.113" }
+oauth2 = "4.4.2"
 
 [workspace]

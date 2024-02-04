@@ -1,3 +1,12 @@
+POST http://127.0.0.1:3000/auth/github/callback HTTP/1.1
+content-type: application/json
+
+{
+    "hello": "world",
+}
+
+###
+
 GET http://127.0.0.1:3000/user/Pavel
 
 ###
