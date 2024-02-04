@@ -1,0 +1,11 @@
+GET http://127.0.0.1:3000/user/Pavel
+
+###
+
+PUT http://127.0.0.1:3000/user HTTP/1.1
+content-type: application/json
+
+{
+    "user_name": "Pavel",
+    "location": "Kladno"
+}

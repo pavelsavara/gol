@@ -1,0 +1,20 @@
+spin_manifest_version = 2
+
+[application]
+name = "gol"
+version = "0.1.0"
+authors = ["Pavel Savara <pavel.savara@gmail.com>"]
+description = ""
+
+[[trigger.http]]
+route = "/..."
+component = "gol"
+
+[component.gol]
+source = "target/wasm32-wasi/release/gol.wasm"
+allowed_outbound_hosts = []
+key_value_stores= ["default"]
+
+[component.gol.build]
+command = "cargo build --target wasm32-wasi --release"
+watch = ["src/**/*.rs", "Cargo.toml"]
