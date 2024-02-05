@@ -5,9 +5,8 @@ use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, HttpRequest, HttpResponse,
     RedirectUrl, Scope, TokenUrl,
 };
+use std::collections::HashMap;
 use std::env;
-use std::future::Future;
-//use std::io::{BufRead, BufReader, Write};
 
 use anyhow::{Error, Ok, Result};
 use spin_sdk::http::{IntoResponse, Params, Request, Response};
@@ -29,7 +28,7 @@ pub fn authorize(_req: Request, _params: Params) -> Result<impl IntoResponse> {
     Ok(res)
 }
 
-pub async fn github_callback(_req: Request, params: Params) -> Result<impl IntoResponse> {
+pub async fn github_callback(_req: Request, _params: Params) -> Result<impl IntoResponse> {
     let query = _req.query();
     let mut code: Option<AuthorizationCode> = None;
     //let state;
@@ -54,6 +53,7 @@ pub async fn github_callback(_req: Request, params: Params) -> Result<impl IntoR
 
     let client = create_client();
     let token_res = client.exchange_code(code).request_async(make_req).await?;
+    println!("Github returned the following token:\n{:?}\n", token_res);
 
     Ok(Response::new(200, ()))
 }
@@ -64,7 +64,8 @@ pub enum XError {
     Bad(),
 }
 
-async fn make_req<E>(req: HttpRequest) -> core::result::Result<HttpResponse, XError> {
+async fn make_req(req: HttpRequest) -> core::result::Result<HttpResponse, XError> {
+    print!("Making request to: {}\n", req.url.as_str());
     let method: spin_sdk::http::Method = match req.method.as_str() {
         "GET" => spin_sdk::http::Method::Get,
         "POST" => spin_sdk::http::Method::Post,
@@ -72,9 +73,17 @@ async fn make_req<E>(req: HttpRequest) -> core::result::Result<HttpResponse, XEr
         "DELETE" => spin_sdk::http::Method::Delete,
         _ => return core::result::Result::Err(Error::msg("Invalid method")).unwrap(),
     };
+    let mut req_headers: HashMap<String, Vec<u8>> = HashMap::new();
+    for req_header in req.headers.iter() {
+        let key = req_header.0.as_str().to_string();
+        let val = req_header.1.as_bytes().to_vec();
+        req_headers.insert(key, val);
+    }
     let request = Request::builder()
         .method(method)
         .uri(req.url.as_str())
+        .headers(req_headers)
+        .body(req.body)
         .build();
 
     // Send the request and await the response
@@ -83,12 +92,26 @@ async fn make_req<E>(req: HttpRequest) -> core::result::Result<HttpResponse, XEr
         return core::result::Result::Err(XError::Bad());
     }
     let response: spin_sdk::http::IncomingResponse = response.unwrap();
+    dbg!("response: {}\n", &response);
+
+    let status = http::status::StatusCode::from_u16(response.status());
+    if status.is_err() {
+        return core::result::Result::Err(XError::Bad());
+    }
+    let status = status.unwrap();
+    dbg!("status: {}\n", status);
 
     let mut response_headers = http::HeaderMap::new();
 
     for header in response.headers().entries() {
         let h = header.clone();
-        let key = h.0.clone().as_str();
+        let key = h.0;
+        let key = http::HeaderName::from_bytes(&key.as_str().as_bytes());
+        if key.is_err() {
+            return core::result::Result::Err(XError::Bad());
+        }
+        let key = key.unwrap();
+
         let value = http::HeaderValue::from_bytes(&header.1);
         if value.is_err() {
             return core::result::Result::Err(XError::Bad());
@@ -96,12 +119,6 @@ async fn make_req<E>(req: HttpRequest) -> core::result::Result<HttpResponse, XEr
         let value = value.unwrap();
         response_headers.append(key, value);
     }
-
-    let status = http::status::StatusCode::from_u16(response.status());
-    if status.is_err() {
-        return core::result::Result::Err(XError::Bad());
-    }
-    let status = status.unwrap();
 
     let body = response.into_body().await;
     if body.is_err() {
@@ -125,6 +142,10 @@ fn create_client() -> BasicClient {
         env::var("GITHUB_CLIENT_SECRET")
             .expect("Missing the GITHUB_CLIENT_SECRET environment variable."),
     );
+    let gol_base_url =
+        env::var("GOL_BASE_URL").expect("Missing the GOL_AUTH_REDIRECT_URL environment variable.");
+    let mut redirect_url = gol_base_url.to_owned();
+    redirect_url.push_str("/auth/github/callback");
     let auth_url = AuthUrl::new("https://github.com/login/oauth/authorize".to_string())
         .expect("Invalid authorization endpoint URL");
     let token_url = TokenUrl::new("https://github.com/login/oauth/access_token".to_string())
@@ -137,10 +158,7 @@ fn create_client() -> BasicClient {
         auth_url,
         Some(token_url),
     )
-    .set_redirect_uri(
-        RedirectUrl::new("http://localhost:3000/auth/github/callback".to_string())
-            .expect("Invalid redirect URL"),
-    );
+    .set_redirect_uri(RedirectUrl::new(redirect_url).expect("Invalid redirect URL"));
 
     client
 }

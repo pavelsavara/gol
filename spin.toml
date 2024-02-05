@@ -13,7 +13,7 @@ component = "gol"
 [component.gol]
 source = "target/wasm32-wasi/release/gol.wasm"
 key_value_stores= ["default"]
-allowed_outbound_hosts = [ "https://www.fermyon.com:443" ]
+allowed_outbound_hosts = [ "https://github.com" ]
 
 [component.gol.build]
 command = "cargo build --target wasm32-wasi --release"
